@@ -1,14 +1,11 @@
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
@@ -65,6 +62,15 @@ fun main() = application {
     var newValuesList = remember { mutableStateListOf<String>(*Array(currentTable.columns.size) { "" }) }
     var searchValuesList = remember { mutableStateListOf<String>(*Array(currentTable.columns.size) { "" }) }
     var errorsInFields = remember { mutableStateListOf<Boolean>(*Array(currentTable.columns.size) { false }) }
+
+    var showProceduresAndFunctions by remember { mutableStateOf(false) }
+
+    var firstFunctionOrderId by remember { mutableStateOf("") }
+    var firstFunctionItemId by remember { mutableStateOf("") }
+    var firstFunctionResult by remember { mutableStateOf<Int?>(null) }
+
+    var secondFunctionParameterValue by remember { mutableStateOf("") }
+    var secondResult by remember { mutableStateOf("") }
 
     // Запуск корутины для получения данных из базы в фоновом режиме
     var job = tableScope.launch {
@@ -138,6 +144,81 @@ fun main() = application {
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+
+                        Row {
+                            Text(text = "Procedures and functions", style = MaterialTheme.typography.h4)
+                            IconButton(
+                                onClick = {
+                                    showProceduresAndFunctions = !showProceduresAndFunctions
+                                }
+                            ) {
+                                Icon(imageVector = Icons.Default.Info, null)
+                            }
+                        }
+                        if (showProceduresAndFunctions) {
+                            Column {
+                                Text(text = "`get_order_item_price`(order_id int, item_id int)")
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    OutlinedTextField(
+                                        value = firstFunctionOrderId,
+                                        onValueChange = { firstFunctionOrderId = it },
+                                        label = { Text(text = "order_id int") },
+                                    )
+
+                                    OutlinedTextField(
+                                        value = firstFunctionItemId,
+                                        onValueChange = { firstFunctionItemId = it },
+                                        label = { Text(text = "order_id int") },
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            if (firstFunctionOrderId.toIntOrNull() != null && firstFunctionItemId.toIntOrNull() != null) {
+                                                firstFunctionResult =
+                                                    getOrderItemPrice(
+                                                        firstFunctionOrderId.toInt(),
+                                                        firstFunctionItemId.toInt()
+                                                    )
+                                            }
+                                        }
+                                    ) {
+                                        Icon(imageVector = Icons.Default.ArrowForward, null)
+                                    }
+
+                                    if (firstFunctionResult != null) {
+                                        Text("Result: $firstFunctionResult")
+                                    }
+                                }
+                                Text(text = "`get_food_order_price`(order_id int)")
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    OutlinedTextField(
+                                        value = secondFunctionParameterValue,
+                                        onValueChange = { secondFunctionParameterValue = it },
+                                        label = { Text("order_id int") },
+                                        trailingIcon = {
+                                            IconButton(
+                                                onClick = {
+                                                    if (secondFunctionParameterValue.toIntOrNull() != null) {
+                                                        secondResult =
+                                                            getFoodOrderPrice(secondFunctionParameterValue.toInt()).toString()
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(imageVector = Icons.Default.Done, null)
+                                            }
+                                        }
+                                    )
+                                    if (secondResult.isNotEmpty()) {
+                                        Text(text = secondResult)
+                                    }
+                                }
+                            }
+                        }
+                        Divider()
                         Text(text = "Search", style = MaterialTheme.typography.h4)
                         SearchBlock(currentTable, searchValuesList) { newString, column, index ->
                             searchValuesList[index] = newString
@@ -185,6 +266,22 @@ fun main() = application {
             }
         }
     }
+}
+
+fun getFoodOrderPrice(orderId: Int): Int {
+    return transaction {
+        OrderItem.select { OrderItem.orderId eq orderId }.toList()
+            .sumOf { getOrderItemPrice(it[OrderItem.orderId], it[OrderItem.itemId]) }
+    }
+}
+
+fun getOrderItemPrice(orderId: Int, itemId: Int): Int {
+    val n: Int = transaction {
+        OrderItem.slice(OrderItem.number).select { (OrderItem.orderId eq orderId) and (OrderItem.itemId eq itemId) }
+    }.toList().first()[OrderItem.number]
+    val p: Int = transaction { MenuItem.select { MenuItem.itemId eq itemId } }
+        .toList().first()[MenuItem.price]
+    return p * n
 }
 
 
