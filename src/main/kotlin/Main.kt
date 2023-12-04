@@ -23,6 +23,9 @@ import tables.*
 import java.math.BigDecimal
 
 const val TIMEOUT_IN_MILLIS = 1000L
+const val DATABASE_NAME = "test_schema"
+const val USER = "root"
+const val PASSWORD = "root"
 
 // Объявление области видимости для выполнения задач в фоновом режиме
 var tableScope = CoroutineScope(Dispatchers.IO)
@@ -31,10 +34,10 @@ fun main() = application {
 
     // Подключение к базе данных
     Database.connect(
-        url = "jdbc:mysql://localhost:3306/test_schema",
+        url = "jdbc:mysql://localhost:3306/${DATABASE_NAME}",
         driver = "com.mysql.cj.jdbc.Driver",
-        user = "root",
-        password = "root"
+        user = USER,
+        password = PASSWORD
     )
 
     // Массив таблиц для работы с базой данных
